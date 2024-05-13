@@ -29,11 +29,11 @@ _default_system_message = """
 You are a helpful AI assistant with a long-term memory. Prior interactions with the user are tagged with a timestamp. Current time: {datetime}.
 """
 _user_info_system_message = """
-You are an expert in helping AI assistants manage their knowledge about a user and their 
+You are an expert in helping AI assistants manage their knowledge about a user and their
 operating environment.
 """
 _scratchpad_system_message = """
-You are an expert in helping AI assistants manage their knowledge about a user and their 
+You are an expert in helping AI assistants manage their knowledge about a user and their
 operating environment.
 """
 _convo_excerpts_prefix = f"# The following are excerpts from the early part of the conversation "\
@@ -49,7 +49,7 @@ class LTMAgentVariant(enum.Enum):
     """The type of memory used by LTMAgent."""
 
     SEMANTIC_ONLY = 0,
-    """    
+    """
     A fast memory that relies only on semantic retrieval of chunks.
     """
 
@@ -165,7 +165,8 @@ class LTMAgent:
         max_completion_tokens: Optional[float] = None,
         config: LTMAgentConfig = None,
         time_fn: Callable[[str, int], float] = _default_time,
-        prompt_callback: Callable[[str, str, list[dict], str], Any] = None
+        prompt_callback: Callable[[str, str, list[dict], str], Any] = None,
+        extra_litellm_params: dict = {},
     ):
         """
         LTMAgent initializer.
@@ -176,6 +177,7 @@ class LTMAgent:
         :param config: Additional agent configuration parameters.
         :param time_fn: Optional function for message timestamps.
         :param prompt_callback: Optional function used to get information on prompts sent to the LLM.
+        :param extra_litellm_params: Optional dictionary with additional parameters for the litellm library.
         """
         super().__init__()
         if config is None:
@@ -195,6 +197,7 @@ class LTMAgent:
         self.user_info: dict = {}
         self.wm_scratchpad: str = ""
         self.model = model
+        self.extra_litellm_params = extra_litellm_params
         mem_config = TextMemoryConfig()
         mem_config.queue_capacity = config.chunk_queue_capacity
         mem_config.chunk_capacity = config.chunk_size
@@ -630,7 +633,7 @@ class LTMAgent:
     def _completion(self, context: List[dict[str, str]], temperature: float, label: str,
                     cost_callback: Callable[[float], Any]) -> str:
         response = completion(model=self.model, messages=context, timeout=self.config.timeout,
-                              temperature=temperature, max_tokens=self.max_completion_tokens)
+                              temperature=temperature, max_tokens=self.max_completion_tokens, **self.extra_litellm_params)
         response_text = response['choices'][0]['message']['content']
         if self.prompt_callback:
             self.prompt_callback(self.session.session_id, label, context, response_text)
